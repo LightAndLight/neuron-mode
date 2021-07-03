@@ -659,7 +659,8 @@ NO-PROMPT is non-nil do not prompt when creating a new zettel."
                 (start (match-beginning 0))
                 (end (match-end 0))
                 (conn (if (null (match-string 2)) 'ordinary 'folgezettel))
-                (query (neuron--parse-query-from-url-or-id link (eq conn 'folgezettel)))
+                (link-text (match-string 3))
+                (query (neuron--parse-query-from-url-or-id link (eq conn 'folgezettel) link-text))
                 (toggled (if (eq conn 'folgezettel) 'ordinary 'folgezettel))
                 (new-query (progn (setf (map-elt query 'conn nil) toggled) query)))
           (save-excursion
@@ -847,9 +848,29 @@ The path is relative to the neuron output directory."
   (neuron--open-zettel-from-id (funcall-interactively #'neuron--get-zettel-id)))
 
 (defconst neuron-link-regex
-  (concat "\\[\\{2,3\\}\\(z:" thing-at-point-url-path-regexp "\\|[[:alnum:]-_ ]+\\(?:\?[^][\t\n\\ {}]*\\)?\\)]]\\(]\\)*")
-  "Regex matching zettel links like [[[URL/ID]]] or [[URL/ID]] .
-Group 1 is the matched ID or URL.")
+  (concat (concat "\\["
+                  "\\{2,3\\}")
+          (concat "\\(?1:"
+                  "z:"
+                  thing-at-point-url-path-regexp
+                  "\\|"
+                  "[[:alnum:]-_ ]+"
+                  (concat "\\(?:"
+                          "\?[^][\t\n\\ {}]*"
+                          "\\)?")
+                  "\\)")
+          (concat "\\(?:"
+                  "|"
+                  (concat "\\(?3:" (concat "[^" "]" "]+") "\\)")
+                  "\\)?")
+          "]]"
+          (concat "\\(?2:"
+                  (concat "]" "\\|" "#")
+                  "\\)?"))
+  "Regex matching zettel links like [[[URL/ID]]] or [[URL/ID]].
+Group 1 is the matched ID or URL.
+Group 2, if present, indicates the presence of a folgezettel link.
+Group 3, if present, contains the link's explicit text.")
 
 
 (defun neuron--extract-id-from-partial-url (url)
@@ -871,7 +892,7 @@ QUERY is a query object as described in `neuron--parse-query-from-url-or-id'."
       ('zettels (neuron--edit-zettel-from-query url))
       ('tags    (neuron-query-tags (neuron--select-tag-from-query url "Search by tag: "))))))
 
-(defun neuron--parse-query-from-url-or-id (url-or-id folgezettel?)
+(defun neuron--parse-query-from-url-or-id (url-or-id folgezettel? link-text)
   "Parse a neuron URL or a raw zettel ID as an object representing the query.
 URL-OR-ID is a string that is meant to be parsed inside neuron links inside
 angle brackets. The query is returned as a map having at least a `'type' field.
@@ -887,6 +908,7 @@ ID, the map features an `'url' field."
          (args   (when query (url-parse-query-string query)))
          (conn   (if folgezettel? 'folgezettel 'ordinary))
          (common `((conn . ,conn)
+                   (link-text . ,link-text)
                    (url . ,url-or-id)
                    (args . ,(assoc-delete-all "cf" args)))))
     (append
@@ -926,7 +948,7 @@ QUERY is an alist containing at least the query type and the URL."
        ;; limit to current line
        (max (- (point) (line-beginning-position))
             (- (line-end-position) (point))))
-      (if-let ((query (neuron--parse-query-from-url-or-id (match-string 1) 't)))
+      (if-let ((query (neuron--parse-query-from-url-or-id (match-string 1) 't (match-string 3))))
           (neuron--follow-query query)
         (user-error "Invalid query"))
     ;; Old style links
@@ -1087,12 +1109,12 @@ When no tag has a particular face, return the default `neuron-title-overlay-face
             (throw 'found-face (car face)))))
       'neuron-title-overlay-face))
 
-(defun neuron--setup-overlay-from-id (ov id conn)
+(defun neuron--setup-overlay-from-id (ov id conn link-text)
   "Setup a single title overlay from a zettel ID.
 OV is the overay to setup or update and CONN describes whether the link is a
 folgezettel or an ordinary connection."
   (if-let* ((zettel (ignore-errors (neuron--get-cached-zettel-from-id id)))
-            (title (alist-get 'Title zettel))
+            (title (if (null link-text) (alist-get 'Title zettel) link-text))
             (title-face (neuron--get-title-face-for-tags (neuron--get-zettel-tags zettel)))
             (title-suffix (if (eq conn 'folgezettel) " ᛦ" "")))
       (if neuron-show-ids
@@ -1111,7 +1133,8 @@ When AFTER is non-nil, this hook is being called after the update occurs."
       (if (string-match neuron-link-regex link)
           (let* ((link (match-string 1 link))
                  (folgezettel? (not (null (match-string 2))))
-                 (query (neuron--parse-query-from-url-or-id link folgezettel?)))
+                 (link-text (match-string 3))
+                 (query (neuron--parse-query-from-url-or-id link folgezettel? link-text)))
             (if query (neuron--setup-overlay-from-query ov query)
               (overlay-put ov 'face 'neuron-invalid-link-face)))
         (delete-overlay ov)))))
@@ -1124,7 +1147,10 @@ When AFTER is non-nil, this hook is being called after the update occurs."
   (overlay-put ov 'mouse-face 'neuron-link-mouse-face)
   (overlay-put ov 'keymap neuron-mode-link-map)
   (when (equal (alist-get 'type query) 'zettel)
-    (neuron--setup-overlay-from-id ov (alist-get 'id query) (alist-get 'conn query))))
+    (neuron--setup-overlay-from-id ov
+                                   (alist-get 'id query)
+                                   (alist-get 'conn query)
+                                   (alist-get 'link-text query))))
 
 (defun neuron--setup-overlays ()
   "Setup title overlays on zettel links."
@@ -1136,7 +1162,8 @@ When AFTER is non-nil, this hook is being called after the update occurs."
              (id-string (match-string 1))
              (closing-bracket (match-string 2))
              (folgezettel? (not (null closing-bracket)))
-             (query (neuron--parse-query-from-url-or-id id-string folgezettel?)))
+             (link-text (match-string 3))
+             (query (neuron--parse-query-from-url-or-id id-string folgezettel? link-text)))
         (neuron--setup-overlay-from-query ov query)))))
 
 ;;;###autoload
