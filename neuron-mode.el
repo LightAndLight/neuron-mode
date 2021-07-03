@@ -529,9 +529,9 @@ is the plugin name."
   (interactive (list (neuron-select-zettel "Edit zettel: ")))
   (neuron--edit-zettel-from-path (neuron--get-zettel-path zettel)))
 
-(defun neuron--get-uplinks-from-id (id)
-  "Get the list of zettels that point to the zettel ID."
-  (when-let* ((cmd (neuron--make-command "query" "--uplinks-of" id))
+(defun neuron--get-links-from-id (links-type id)
+  "Get the list of backlinks or uplinks of the given zettel ID."
+  (when-let* ((cmd (neuron--make-command "query" (concat "--" links-type "-of") id))
               (output (neuron--run-command cmd))
               (results (neuron--read-query-result output)))
     (mapcar (lambda (result) (seq-elt result 1)) results)))
@@ -541,8 +541,16 @@ is the plugin name."
   (interactive)
   (neuron-check-if-zettelkasten-exists)
   (let* ((id (neuron--get-zettel-id))
-         (uplinks (neuron--get-uplinks-from-id id)))
+         (uplinks (neuron--get-links-from-id "uplinks" id)))
     (neuron-edit-zettel (neuron--select-zettel-from-list uplinks "Edit uplink: " t))))
+
+(defun neuron-edit-backlink ()
+  "Select and edit a zettel from the current zettel's backlinks."
+  (interactive)
+  (neuron-check-if-zettelkasten-exists)
+  (let* ((id (neuron--get-zettel-id))
+         (backlinks (neuron--get-links-from-id "backlinks" id)))
+    (neuron-edit-zettel (neuron--select-zettel-from-list backlinks "Edit backlink: " t))))
 
 ;;;###autoload
 (defun neuron-edit-zettelkasten-configuration ()
