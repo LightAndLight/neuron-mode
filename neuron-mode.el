@@ -850,10 +850,11 @@ The path is relative to the neuron output directory."
                   "\\)")
           "]]"
           (concat "\\("
-                  "]"
-                  "\\)*"))
-  "Regex matching zettel links like [[[URL/ID]]] or [[URL/ID]] .
-Group 1 is the matched ID or URL.")
+                  (concat "]" "\\|" "#")
+                  "\\)?"))
+  "Regex matching zettel links like [[[URL/ID]]] or [[URL/ID]].
+Group 1 is the matched ID or URL.
+Group 2, if present, indicates the presence of a folgezettel link.")
 
 
 (defun neuron--extract-id-from-partial-url (url)
