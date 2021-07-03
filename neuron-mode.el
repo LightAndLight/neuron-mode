@@ -839,7 +839,7 @@ The path is relative to the neuron output directory."
 (defconst neuron-link-regex
   (concat (concat "\\["
                   "\\{2,3\\}")
-          (concat "\\("
+          (concat "\\(?1:"
                   "z:"
                   thing-at-point-url-path-regexp
                   "\\|"
@@ -849,7 +849,7 @@ The path is relative to the neuron output directory."
                           "\\)?")
                   "\\)")
           "]]"
-          (concat "\\("
+          (concat "\\(?2:"
                   (concat "]" "\\|" "#")
                   "\\)?"))
   "Regex matching zettel links like [[[URL/ID]]] or [[URL/ID]].
