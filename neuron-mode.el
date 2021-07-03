@@ -534,7 +534,9 @@ is the plugin name."
   (when-let* ((cmd (neuron--make-command "query" (concat "--" links-type "-of") id))
               (output (neuron--run-command cmd))
               (results (neuron--read-query-result output)))
-    (mapcar (lambda (result) (seq-elt result 1)) results)))
+    (map 'seq
+         (lambda (item) (seq-elt item 1))
+         (alist-get 'result (seq-elt results 0)))))
 
 (defun neuron-edit-uplink ()
   "Select and edit a zettel among the ones that link to the current zettel."
