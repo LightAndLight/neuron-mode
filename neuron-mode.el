@@ -123,13 +123,13 @@ Overrides `neuron-title-overlay-face' which you may inherif from."
   :group 'neuron
   :type '(alist :key-type string :value-type face))
 
-(defcustom neuron-rib-server-host "localhost"
-  "The host on which the rib server is started."
+(defcustom neuron-gen-server-host "localhost"
+  "The host on which the neuron server is started."
   :group 'neuron
   :type  'stringp)
 
-(defcustom neuron-rib-server-port 8080
-  "The port on which the rib server is started."
+(defcustom neuron-gen-server-port 8080
+  "The port on which the neuron server is started."
   :group 'neuron
   :type  'integerp)
 
@@ -318,13 +318,13 @@ Extract only the result itself, so the query type is lost."
   "Run a neuron query with given arguments."
   (neuron--read-query-result (neuron--run-command (neuron--make-query-command args))))
 
-(defun neuron--run-rib-process (&rest args)
-  "Run an asynchronous neuron process spawned by the rib command with arguments ARGS."
-  (start-process-shell-command "rib" "*rib*" (apply #'neuron--make-command "rib" args)))
+(defun neuron--run-gen-process (&rest args)
+  "Run an asynchronous neuron process spawned by the gen command with arguments ARGS."
+  (start-process-shell-command "gen" "*gen*" (apply #'neuron--make-command "gen" args)))
 
-(defun neuron--run-rib-compile (&rest args)
-  "Run an synchronous neuron command spawned by the rib command with arguments ARGS."
-  (compile (apply #'neuron--make-command "rib" args)))
+(defun neuron--run-gen-compile (&rest args)
+  "Run an synchronous neuron command spawned by the gen command with arguments ARGS."
+  (compile (apply #'neuron--make-command "gen" args)))
 
 (defvar neuron--zettel-cache nil
   "Map containing all zettels indexed by their ID.")
@@ -1002,65 +1002,65 @@ QUERY is an alist containing at least the query type and the URL."
         (_ (markdown-follow-thing-at-point link))))))
 
 ;;;###autoload
-(defun neuron-rib-watch ()
+(defun neuron-gen-watch ()
   "Start a web app for browsing the zettelkasten."
   (interactive)
   (let ((root (neuron-zettelkasten)))
-    (if (neuron--run-rib-process "-w")
+    (if (neuron--run-gen-process "-w")
         (message "Watching %s for changes..." root)
       (user-error "Failed to watch %s" root))))
 
 ;;;###autoload
-(defun neuron-rib-serve ()
+(defun neuron-gen-serve ()
   "Start a web app for browsing the zettelkasten."
   (interactive)
   (neuron-check-if-zettelkasten-exists)
-  (let ((address (format "%s:%d" neuron-rib-server-host neuron-rib-server-port)))
-    (if (neuron--run-rib-process "-ws" address)
+  (let ((address (format "%s:%d" neuron-gen-server-host neuron-gen-server-port)))
+    (if (neuron--run-gen-process "-ws" address)
         (message "Started web application on %s" address)
-      (user-error "Failed to run rib server on %s" address))))
+      (user-error "Failed to run neuron server on %s" address))))
 
 ;;;###autoload
-(defun neuron-rib-generate ()
+(defun neuron-gen-generate ()
   "Do an one-off generation of the web interface of the zettelkasten."
   (interactive)
   (let ((root (neuron-zettelkasten)))
-    (if (neuron--run-rib-compile)
+    (if (neuron--run-gen-compile)
         (message "Generated HTML files")
       (user-error "Failed to generate %s" root))))
 
 ;;;###autoload
-(defun neuron-rib-open-page (page)
+(defun neuron-gen-open-page (page)
   "Open the web-application at page PAGE."
   (neuron-check-if-zettelkasten-exists)
-  (browse-url (format "http://%s:%d/%s" neuron-rib-server-host neuron-rib-server-port page)))
+  (browse-url (format "http://%s:%d/%s" neuron-gen-server-host neuron-gen-server-port page)))
 
 ;;;###autoload
-(defun neuron-rib-open-z-index ()
+(defun neuron-gen-open-z-index ()
   "Open the web application in the web browser at z-index."
   (interactive)
   (neuron-check-if-zettelkasten-exists)
-  (neuron-rib-open-page "z-index.html"))
+  (neuron-gen-open-page "z-index.html"))
 
-(defun neuron-rib-open-current-zettel ()
+(defun neuron-gen-open-current-zettel ()
   "Open the web application in the web browser at the current zettel note."
   (interactive)
   (neuron-check-if-zettelkasten-exists)
   (let ((id (f-base (buffer-file-name))))
-    (neuron-rib-open-page (concat id ".html"))))
+    (neuron-gen-open-page (concat id ".html"))))
 
 ;;;###autoload
-(defun neuron-rib-open-zettel ()
+(defun neuron-gen-open-zettel ()
   "Open a zettel in the web application."
   (interactive)
   (neuron-check-if-zettelkasten-exists)
   (let ((zettel (neuron-select-zettel)))
-    (neuron-rib-open-page (concat (map-elt zettel 'ID) ".html"))))
+    (neuron-gen-open-page (concat (map-elt zettel 'ID) ".html"))))
 
-(defun neuron-rib-kill ()
+(defun neuron-gen-kill ()
   "Stop the web application."
   (interactive)
-  (kill-buffer "*rib*"))
+  (kill-buffer "*gen*"))
 
 (defconst neuron-tag-component-regex
   "[A-Za-z0-9-_]+"
@@ -1321,7 +1321,7 @@ IGNORED is the rest of the arguments, not sure why it's there."
   "A major mode to edit Zettelkasten notes with neuron."
   (neuron-check-if-zettelkasten-exists)
   (when neuron-generate-on-save
-    (add-hook 'after-save-hook #'neuron-rib-generate t t))
+    (add-hook 'after-save-hook #'neuron-gen-generate t t))
   (add-hook 'after-save-hook #'neuron--setup-overlays t t)
   (neuron--setup-overlays)
   (use-local-map neuron-mode-map)
