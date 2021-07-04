@@ -960,6 +960,22 @@ QUERY is an alist containing at least the query type and the URL."
         (- (line-end-position) (point))))
   )
 
+(defun neuron-edit-link-text-at-point ()
+  (interactive)
+  (if (neuron--looking-at-link?)
+      (progn
+        (if (null (match-string 3))
+            ;; there was no explicit link text
+            (progn
+              (goto-char (match-end 1))
+              (insert "|"))
+          ;; there was some explicit link text
+          (progn
+            (delete-region (match-beginning 3) (match-end 3))
+            (goto-char (match-beginning 3))))
+        (neuron--setup-overlays))
+    (user-error "Not a link")))
+
 ;;;###autoload
 (defun neuron-follow-thing-at-point ()
   "Open the zettel link at point."
