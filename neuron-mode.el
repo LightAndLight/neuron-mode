@@ -455,7 +455,7 @@ When TITLE is nil, prompt the user."
 
 (defun neuron--style-zettel-id (zid)
   "Style a ZID as shown in the completion prompt."
-  (propertize (format "[[[%s]]]" zid) 'face 'neuron-link-face))
+  (propertize (format "[[%s]]" zid) 'face 'neuron-link-face))
 
 (defun neuron--style-tags (tags)
   "Style TAGS as shown in the completion prompt when selecting a zettel."
