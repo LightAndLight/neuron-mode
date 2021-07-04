@@ -595,6 +595,20 @@ otherwise return nil."
   (neuron-check-if-zettelkasten-exists)
   (neuron--insert-zettel-link-from-id (map-elt (neuron-select-zettel "Link zettel: ") 'ID)))
 
+(defun neuron--insert-zettel-link-from-id-with-text (id link-text)
+  "Insert a zettel link with explcit link text."
+  (progn
+    (insert (format "[[%s|%s]]" id link-text))
+    (neuron--setup-overlays)))
+
+(defun neuron-insert-zettel-link-with-text ()
+  "Insert a link to another zettel with explicit link text."
+  (interactive)
+  (neuron-check-if-zettelkasten-exists)
+  (let* ((id (map-elt (neuron-select-zettel "Link zettel: ") 'ID))
+         (link-text (read-string "Link text: ")))
+    (neuron--insert-zettel-link-from-id-with-text id link-text)))
+
 (defun neuron-insert-new-zettel ()
   "Create a new zettel."
   (interactive)
