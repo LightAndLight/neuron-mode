@@ -951,17 +951,38 @@ QUERY is an alist containing at least the query type and the URL."
       ('zettels (format "%sz:zettels%s%s" link-opening url-suffix link-closing))
       ('tags (format "%sz:tags%s%s" link-opening url-suffix link-closing)))))
 
+(defun neuron--looking-at-link? ()
+  ;; (from the `thing-at-point' demo)
+  (thing-at-point-looking-at
+   neuron-link-regex
+   ;; limit to current line
+   (max (- (point) (line-beginning-position))
+        (- (line-end-position) (point))))
+  )
+
+(defun neuron-edit-link-text-at-point ()
+  (interactive)
+  (if (neuron--looking-at-link?)
+      (progn
+        (if (null (match-string 3))
+            ;; there was no explicit link text
+            (progn
+              (goto-char (match-end 1))
+              (insert "|"))
+          ;; there was some explicit link text
+          (progn
+            (delete-region (match-beginning 3) (match-end 3))
+            (goto-char (match-beginning 3))))
+        (neuron--setup-overlays))
+    (user-error "Not a link")))
+
 ;;;###autoload
 (defun neuron-follow-thing-at-point ()
   "Open the zettel link at point."
   (interactive)
   (neuron-check-if-zettelkasten-exists)
-  ;; New links (from the `thing-at-point' demo)
-  (if (thing-at-point-looking-at
-       neuron-link-regex
-       ;; limit to current line
-       (max (- (point) (line-beginning-position))
-            (- (line-end-position) (point))))
+  ;; New links
+  (if (neuron--looking-at-link?)
       (if-let ((query (neuron--parse-query-from-url-or-id (match-string 1) 't (match-string 3))))
           (neuron--follow-query query)
         (user-error "Invalid query"))
