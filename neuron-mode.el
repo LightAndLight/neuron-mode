@@ -152,6 +152,32 @@ If non-nil, the zettel title will be included in the buffer name."
   :group 'neuron
   :type 'booleanp)
 
+(defconst neuron-link-regex
+  (concat (concat "\\["
+                  "\\{2,3\\}")
+          (concat "\\(?1:"
+                  "z:"
+                  thing-at-point-url-path-regexp
+                  "\\|"
+                  "[[:alnum:]-_ ]+"
+                  (concat "\\(?:"
+                          "\?[^][\t\n\\ {}]*"
+                          "\\)?")
+                  "\\)")
+          (concat "\\(?:"
+                  "|"
+                  (concat "\\(?3:" (concat "[^" "]" "]+") "\\)")
+                  "\\)?")
+          "]]"
+          (concat "\\(?2:"
+                  (concat "]" "\\|" "#")
+                  "\\)?"))
+  "Regex matching zettel links like [[[URL/ID]]] or [[URL/ID]].
+Group 1 is the matched ID or URL.
+Group 2, if present, indicates the presence of a folgezettel link.
+Group 3, if present, contains the link's explicit text.")
+
+
 (defgroup neuron-faces nil
   "Faces used in neuron-mode."
   :group 'neuron
@@ -861,32 +887,6 @@ The path is relative to the neuron output directory."
   (neuron-check-if-zettelkasten-exists)
   (neuron--open-zettel-from-id (funcall-interactively #'neuron--get-zettel-id)))
 
-(defconst neuron-link-regex
-  (concat (concat "\\["
-                  "\\{2,3\\}")
-          (concat "\\(?1:"
-                  "z:"
-                  thing-at-point-url-path-regexp
-                  "\\|"
-                  "[[:alnum:]-_ ]+"
-                  (concat "\\(?:"
-                          "\?[^][\t\n\\ {}]*"
-                          "\\)?")
-                  "\\)")
-          (concat "\\(?:"
-                  "|"
-                  (concat "\\(?3:" (concat "[^" "]" "]+") "\\)")
-                  "\\)?")
-          "]]"
-          (concat "\\(?2:"
-                  (concat "]" "\\|" "#")
-                  "\\)?"))
-  "Regex matching zettel links like [[[URL/ID]]] or [[URL/ID]].
-Group 1 is the matched ID or URL.
-Group 2, if present, indicates the presence of a folgezettel link.
-Group 3, if present, contains the link's explicit text.")
-
-
 (defun neuron--extract-id-from-partial-url (url)
   "Extract the ID from a single zettel URL."
   (let* ((struct (url-generic-parse-url url))
@@ -1153,19 +1153,6 @@ When AFTER is non-nil, this hook is being called after the update occurs."
               (overlay-put ov 'face 'neuron-invalid-link-face)))
         (delete-overlay ov)))))
 
-(defun neuron--setup-overlay-from-query (ov query)
-  "Setup a overlay OV from any zettel link QUERY."
-  (overlay-put ov 'evaporate t)
-  (overlay-put ov 'modification-hooks (list #'neuron--overlay-update))
-  (overlay-put ov 'face 'neuron-link-face)
-  (overlay-put ov 'mouse-face 'neuron-link-mouse-face)
-  (overlay-put ov 'keymap neuron-mode-link-map)
-  (when (equal (alist-get 'type query) 'zettel)
-    (neuron--setup-overlay-from-id ov
-                                   (alist-get 'id query)
-                                   (alist-get 'conn query)
-                                   (alist-get 'link-text query))))
-
 (defun neuron--setup-overlays ()
   "Setup title overlays on zettel links."
   (remove-overlays)
@@ -1289,6 +1276,19 @@ IGNORED is the rest of the arguments, not sure why it's there."
   (setq neuron-mode-link-map (make-sparse-keymap))
   (define-key neuron-mode-link-map [mouse-1]    #'neuron-follow-thing-at-point)
   (define-key neuron-mode-link-map (kbd "RET")  #'neuron-follow-thing-at-point))
+
+(defun neuron--setup-overlay-from-query (ov query)
+  "Setup a overlay OV from any zettel link QUERY."
+  (overlay-put ov 'evaporate t)
+  (overlay-put ov 'modification-hooks (list #'neuron--overlay-update))
+  (overlay-put ov 'face 'neuron-link-face)
+  (overlay-put ov 'mouse-face 'neuron-link-mouse-face)
+  (overlay-put ov 'keymap neuron-mode-link-map)
+  (when (equal (alist-get 'type query) 'zettel)
+    (neuron--setup-overlay-from-id ov
+                                   (alist-get 'id query)
+                                   (alist-get 'conn query)
+                                   (alist-get 'link-text query))))
 
 (defvar neuron-mode-hook nil
   "Hook run when entering `neuron-mode'.")
